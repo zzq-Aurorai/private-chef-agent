@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>私厨 · 营养助手</title>
+<style>
+  :root{
+    --bg:#F6F2EA; --panel:#FFFFFF; --ink:#241F1A; --muted:#8B8175;
+    --line:#E7E0D5; --accent:#B5542F; --accent-ink:#FFF8F4; --accent-soft:#F4E4DA;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{ display:flex; height:100vh; overflow:hidden; }
+
+  /* ---------- 侧边栏 ---------- */
+  .sidebar{
+    width:264px; flex:0 0 264px; display:flex; flex-direction:column;
+    background:#FBF8F2; border-right:1px solid var(--line); padding:18px 14px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; padding:4px 6px 18px; }
+  .brand-dot{
+    width:30px; height:30px; border-radius:10px; background:var(--accent);
+    color:var(--accent-ink); display:grid; place-items:center; font-size:15px;
+  }
+  .brand-name{ font-weight:650; letter-spacing:.2px; }
+  .new-chat{
+    width:100%; padding:10px 12px; border-radius:12px; cursor:pointer;
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    font-size:14px; font-weight:560; text-align:left; transition:.15s;
+  }
+  .new-chat:hover{ border-color:var(--accent); color:var(--accent); }
+  .threads{ margin-top:16px; overflow:auto; flex:1; display:flex; flex-direction:column; gap:4px; }
+  .thread{
+    text-align:left; padding:9px 10px; border-radius:10px; cursor:pointer;
+    border:1px solid transparent; background:transparent; color:var(--ink);
+    font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .thread:hover{ background:#F1EAE0; }
+  .thread.active{ background:var(--accent-soft); border-color:#E7CDBE; font-weight:560; }
+  .sidebar-foot{ font-size:11.5px; color:var(--muted); padding:12px 6px 2px; line-height:1.6; }
+
+  /* ---------- 主区 ---------- */
+  .main{ flex:1; display:flex; flex-direction:column; min-width:0; }
+  .topbar{ padding:16px 26px 12px; border-bottom:1px solid var(--line); background:rgba(255,255,255,.7); }
+  .topbar h1{ margin:0; font-size:15.5px; font-weight:650; }
+  .topbar p{ margin:3px 0 0; font-size:12px; color:var(--muted); }
+
+  .messages{ flex:1; overflow:auto; padding:26px 0 10px; }
+  .wrap{ max-width:760px; margin:0 auto; padding:0 22px; display:flex; flex-direction:column; gap:18px; }
+
+  .empty{ max-width:560px; margin:8vh auto 0; text-align:center; padding:0 24px; }
+  .empty .icon{ font-size:44px; }
+  .empty h2{ margin:14px 0 6px; font-size:21px; letter-spacing:.2px; }
+  .empty p{ margin:0 0 20px; color:var(--muted); font-size:14px; line-height:1.7; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  .chip{
+    padding:8px 14px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink); font-size:13px; cursor:pointer; transition:.15s;
+  }
+  .chip:hover{ border-color:var(--accent); color:var(--accent); }
+
+  .msg{ display:flex; gap:10px; }
+  .msg.user{ flex-direction:row-reverse; }
+  .avatar{
+    width:28px; height:28px; border-radius:9px; flex:0 0 28px; display:grid; place-items:center;
+    font-size:13px; background:#EDE6DA; color:var(--muted);
+  }
+  .msg.user .avatar{ background:var(--accent); color:var(--accent-ink); }
+  .bubble{
+    max-width:min(560px,82%); padding:12px 15px; border-radius:14px; font-size:14.5px;
+    line-height:1.75; white-space:pre-wrap; word-break:break-word;
+    background:var(--panel); border:1px solid var(--line);
+  }
+  .msg.user .bubble{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .bubble img{ display:block; max-width:260px; border-radius:10px; margin-bottom:9px; }
+
+  .typing{ display:flex; gap:4px; padding:4px 2px; }
+  .typing i{ width:6px; height:6px; border-radius:50%; background:var(--muted); animation:blink 1.2s infinite; }
+  .typing i:nth-child(2){ animation-delay:.2s; }
+  .typing i:nth-child(3){ animation-delay:.4s; }
+  @keyframes blink{ 0%,80%,100%{opacity:.25} 40%{opacity:1} }
+
+  /* ---------- 输入区 ---------- */
+  .composer{ padding:10px 0 22px; }
+  .composer-inner{
+    max-width:760px; margin:0 auto; padding:0 22px;
+  }
+  .box{
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:10px; box-shadow:0 6px 22px rgba(36,31,26,.06);
+  }
+  .box:focus-within{ border-color:#DCC7B7; }
+  .preview{ position:relative; display:inline-block; margin:2px 0 8px 2px; }
+  .preview img{ height:74px; border-radius:10px; display:block; }
+  .preview .remove{
+    position:absolute; top:-6px; right:-6px; width:20px; height:20px; border-radius:50%;
+    border:none; background:var(--ink); color:#fff; font-size:12px; line-height:1; cursor:pointer;
+  }
+  .row{ display:flex; align-items:flex-end; gap:8px; }
+  .attach{
+    width:36px; height:36px; flex:0 0 36px; border-radius:10px; cursor:pointer;
+    border:1px solid var(--line); background:#FCFAF6; color:var(--muted);
+    display:grid; place-items:center; font-size:19px; line-height:1;
+  }
+  .attach:hover{ border-color:var(--accent); color:var(--accent); }
+  textarea{
+    flex:1; resize:none; border:none; outline:none; background:transparent; color:var(--ink);
+    font:inherit; font-size:14.5px; line-height:1.6; padding:8px 4px; max-height:150px;
+  }
+  textarea::placeholder{ color:#B4AA9C; }
+  .send{
+    flex:0 0 auto; padding:9px 18px; border-radius:11px; border:none; cursor:pointer;
+    background:var(--accent); color:var(--accent-ink); font-size:14px; font-weight:560; transition:.15s;
+  }
+  .send:hover{ filter:brightness(1.06); }
+  .send:disabled{ opacity:.45; cursor:not-allowed; }
+
+  .toast{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(14px);
+    background:#2B2521; color:#FFF6EF; padding:10px 16px; border-radius:11px; font-size:13px;
+    opacity:0; pointer-events:none; transition:.22s; max-width:80vw;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @media (max-width:820px){
+    .sidebar{ display:none; }
+    .topbar{ padding:14px 18px 10px; }
+    .bubble{ max-width:88%; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-dot">🍲</div>
+      <div class="brand-name">私厨营养助手</div>
+    </div>
+    <button class="new-chat" id="newChat">＋ 新对话</button>
+    <div class="threads" id="threadList"></div>
+    <div class="sidebar-foot">对话记录存在服务端 SQLite<br>这里只保存会话编号</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1>今天这餐，帮你算清楚</h1>
+      <p id="threadLabel">新对话</p>
+    </header>
+
+    <div class="messages" id="messages">
+      <div class="empty" id="empty">
+        <div class="icon">🥗</div>
+        <h2>拍一张，或者直接说说你吃了什么</h2>
+        <p>上传餐食照片，我会估算热量和营养素；也可以告诉我你的身高体重和目标，我帮你安排下一餐。</p>
+        <div class="chips">
+          <button class="chip">这餐大概多少热量？</button>
+          <button class="chip">蛋白质够吗？</button>
+          <button class="chip">今晚还能吃什么？</button>
+        </div>
+      </div>
+      <div class="wrap" id="wrap"></div>
+    </div>
+
+    <div class="composer">
+      <div class="composer-inner">
+        <div class="box">
+          <div class="preview" id="preview" hidden>
+            <img id="previewImg" alt="待发送图片" />
+            <button class="remove" id="removeImg" title="移除">×</button>
+          </div>
+          <div class="row">
+            <label class="attach" title="上传图片">
+              ＋
+              <input id="fileInput" type="file" accept="image/*" hidden />
+            </label>
+            <textarea id="input" rows="1" placeholder="说说你今天吃了什么，或者上传一张照片…"></textarea>
+            <button class="send" id="send">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = "";              // 前后端同源，留空即可
+const el  = (id) => document.getElementById(id);
+
+let threadId = null;
+let pendingImageUrl = null;
+let busy = false;
+
+/* ---------------- 会话列表（只存编号，存在浏览器） ---------------- */
+const store = {
+  key: "chef.threads",
+  load() { try { return JSON.parse(localStorage.getItem(this.key)) || []; } catch { return []; } },
+  save(list) { localStorage.setItem(this.key, JSON.stringify(list)); },
+};
+
+function renderThreadList() {
+  const list = store.load();
+  const box = el("threadList");
+  box.innerHTML = "";
+  for (const t of list) {
+    const b = document.createElement("button");
+    b.className = "thread" + (t.id === threadId ? " active" : "");
+    b.textContent = t.title;
+    b.title = t.id;
+    b.onclick = () => selectThread(t.id);
+    box.appendChild(b);
+  }
+}
+
+function newThread() {
+  const id = "web-" + Date.now().toString(36);
+  const list = store.load();
+  list.unshift({ id, title: "新对话" });
+  store.save(list.slice(0, 20));
+  threadId = id;
+  pendingImageUrl = null;
+  el("preview").hidden = true;
+  el("wrap").innerHTML = "";
+  el("empty").hidden = false;
+  el("threadLabel").textContent = id;
+  renderThreadList();
+}
+
+function selectThread(id) {
+  threadId = id;
+  pendingImageUrl = null;
+  el("preview").hidden = true;
+  el("wrap").innerHTML = "";
+  el("empty").hidden = false;
+  el("threadLabel").textContent = id;
+  renderThreadList();
+  toast("已切换会话，服务端记忆仍然接续");
+}
+
+/* ---------------- 渲染 ---------------- */
+function appendMessage(role, text, imageUrl) {
+  el("empty").hidden = true;
+  const msg = document.createElement("div");
+  msg.className = "msg " + role;
+
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.textContent = role === "user" ? "我" : "🍲";
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  if (imageUrl) {
+    const img = document.createElement("img");
+    img.src = imageUrl;
+    img.alt = "上传的餐食图片";
+    bubble.appendChild(img);
+  }
+  if (text) bubble.appendChild(document.createTextNode(text));
+
+  msg.appendChild(avatar);
+  msg.appendChild(bubble);
+  el("wrap").appendChild(msg);
+  scrollToBottom();
+  return bubble;
+}
+
+function showTyping() {
+  const msg = document.createElement("div");
+  msg.className = "msg assistant";
+  msg.id = "typing";
+  msg.innerHTML =
+    '<div class="avatar">🍲</div>' +
+    '<div class="bubble"><div class="typing"><i></i><i></i><i></i></div></div>';
+  el("wrap").appendChild(msg);
+  scrollToBottom();
+}
+
+function hideTyping() {
+  const t = el("typing");
+  if (t) t.remove();
+}
+
+function scrollToBottom() {
+  const m = el("messages");
+  m.scrollTop = m.scrollHeight;
+}
+
+function toast(text) {
+  const t = el("toast");
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function autoGrow() {
+  const ta = el("input");
+  ta.style.height = "auto";
+  ta.style.height = Math.min(ta.scrollHeight, 150) + "px";
+}
+
+/* =================================================================
+   TODO ①：把消息发给 /chat
+   参考代码见对话里的说明，按步骤写
+   ================================================================= */
+async function sendMessage() {
+  const input = el("input");
+  const text = input.value.trim();
+  if (!text || busy) return;
+
+  const imageUrl = pendingImageUrl;
+
+  appendMessage("user", text, imageUrl);
+  input.value = "";
+  autoGrow();
+
+  pendingImageUrl = null;
+  el("preview").hidden = true;
+
+  busy = true;
+  el("send").disabled = true;
+  showTyping();
+
+  let bubble = null;
+  let answer = "";
+
+  try {
+    const res = await fetch(API + "/chat/stream", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+      },
+      body: JSON.stringify({
+        message: text,
+        thread_id: threadId,
+        image_url: imageUrl || null,
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "请求失败 (" + res.status + ")");
+    }
+
+    if (!res.body) throw new Error("当前浏览器不支持流式响应");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      const parts = buffer.split("\n\n");
+      buffer = parts.pop() || "";
+
+      for (const part of parts) {
+        if (!part.startsWith("data: ")) continue;
+
+        const evt = JSON.parse(part.slice(6));
+
+        if (evt.type === "delta") {
+          if (!bubble) {
+            hideTyping();
+            bubble = appendMessage("assistant", "");
+          }
+          answer += evt.text;
+          bubble.textContent = answer;
+          scrollToBottom();
+        } else if (evt.type === "error") {
+          throw new Error(evt.message || "服务端出错");
+        }
+      }
+    }
+
+    if (!bubble) {
+      hideTyping();
+      bubble = appendMessage("assistant", "（这次没有收到内容）");
+    }
+  } catch (err) {
+    hideTyping();
+    if (bubble) {
+      bubble.textContent = answer + "\n\n[中断] " + (err.message || err);
+    } else {
+      appendMessage("assistant", "出错了：" + (err.message || err));
+    }
+  } finally {
+    busy = false;
+    el("send").disabled = false;
+    input.focus();
+  }
+}
+
+/* =================================================================
+   TODO ②：把图片传到 /upload，拿回 url
+   参考代码见对话里的说明，按步骤写
+   ================================================================= */
+async function uploadImage(file) {
+  // ① 先本地预览，用户立刻看到反馈
+  el("previewImg").src = URL.createObjectURL(file);
+  el("preview").hidden = false;
+
+  try {
+    // ② 组装表单
+    const fd = new FormData();
+    fd.append("file", file);        // 字段名必须叫 file
+
+    // ③ 上传（注意：绝对不要自己设 Content-Type）
+    const res = await fetch(API + "/upload", { method: "POST", body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || "上传失败 (" + res.status + ")");
+    }
+
+    // ④ 记住 url，等用户点发送时一起带过去
+    const data = await res.json();
+    pendingImageUrl = data.url;
+    el("previewImg").src = data.url;   // 换成真实 URL
+    toast("图片已上传");
+  } catch (err) {
+    pendingImageUrl = null;
+    el("preview").hidden = true;
+    throw err;
+  }
+}
+
+/* ---------------- 事件绑定（已写好，不用改） ---------------- */
+el("newChat").onclick = newThread;
+
+el("send").onclick = async () => {
+  if (busy) return;
+  try {
+    await sendMessage();
+  } catch (err) {
+    toast(err.message || String(err));
+  }
+};
+
+el("input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    el("send").click();
+  }
+});
+el("input").addEventListener("input", autoGrow);
+
+el("fileInput").onchange = async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    await uploadImage(file);
+  } catch (err) {
+    toast(err.message || String(err));
+  }
+  e.target.value = "";
+};
+
+el("removeImg").onclick = () => {
+  pendingImageUrl = null;
+  el("preview").hidden = true;
+};
+
+document.querySelectorAll(".chip").forEach((chip) => {
+  chip.onclick = () => {
+    el("input").value = chip.textContent;
+    autoGrow();
+    el("send").click();
+  };
+});
+
+newThread();
+</script>
+</body>
+</html>
